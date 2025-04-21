@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Security Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(to right, #c9d6ff, #e2e2e2);
+    }
+
+    .header {
+      background-color: #3f51b5;
+      color: white;
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h2 {
+      margin: 0;
+    }
+
+    .header .actions button {
+      background-color: #ff9800;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      margin-left: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .toolkit {
+      padding: 40px;
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      margin-top: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+
+    .toolkit h3 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .toolkit input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 12px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .toolkit button {
+      padding: 10px 20px;
+      background-color: #4caf50;
+      border: none;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+
+    .toolkit button:hover {
+      background-color: #388e3c;
+    }
+
+    .output {
+      margin-top: 10px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h2>Security Toolkit</h2>
+    <div class="actions">
+      <button onclick="accessPasswordStorage()">🔐 Access Passwords</button>
+      <button onclick="addNewPassword()">➕ Add Password</button>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="toolkit">
+    <h3>URL Safety Checker</h3>
+    <input type="text" id="urlInput" placeholder="Enter URL">
+    <button onclick="checkWithUrlScan()">Check URL</button>
+    <div id="result" class="output"></div>
+
+    <h3>Breach Checker</h3>
+    <input type="text" id="userEmail">
+    <button onclick="checkBreaches()">Check Breach</button>
+    <div id="fileResult" class="output"></div>
+
+    <h3>Phishing Email Checker</h3>
+    <input type="text" id="mailText" placeholder="Paste suspected email text">
+    <button onclick="checkPhishing()">Check Email</button>
+    <div id="phishResult" class="output"></div>
+  </div>
+
+  <script>
+    function accessPasswordStorage() {
+      const passkey = prompt("Enter your passkey to access stored passwords:");
+      const stored = JSON.parse(localStorage.getItem("storedPasswords") || "{}");
+      if (stored[passkey]) {
+        alert("Stored Passwords:\n\n" + stored[passkey].join("\n"));
+      } else {
+        alert("No passwords found for this passkey.");
+      }
+    }
+
+    function addNewPassword() {
+      const passkey = prompt("Enter your passkey:");
+      const pwd = prompt("Enter the password to store:");
+      if (!passkey || !pwd) return alert("Both fields are required.");
+      let stored = JSON.parse(localStorage.getItem("storedPasswords") || "{}");
+      if (!stored[passkey]) stored[passkey] = [];
+      stored[passkey].push(pwd);
+      localStorage.setItem("storedPasswords", JSON.stringify(stored));
+      alert("Password stored!");
+    }
+
+    function logout() {
+      window.location.href ="login.html";
+    }
+    async function checkWithUrlScan() {
+      const url = document.getElementById("urlInput").value.trim();
+      const resultDiv = document.getElementById("result");
+
+      if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        resultDiv.textContent = "Please enter a valid URL (starting with http:// or https://)";
+        return;
+      }
+
+      resultDiv.textContent = "Submitting URL for scan...";
+
+      const proxy = "https://cors-anywhere.herokuapp.com/";
+      const scanApiUrl = proxy + "https://urlscan.io/api/v1/scan/";
+
+      try {
+        const scanResponse = await fetch(scanApiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "API-Key": "0196540e-302f-7709-a1b2-efaaef0c1b84"
+          },
+          body: JSON.stringify({
+            url: url,
+            public: "on"
+          })
+        });
+
+        if (!scanResponse.ok) {
+          resultDiv.textContent = `Scan failed with status: ${scanResponse.status}`;
+          return;
+        }
+
+        const scanData = await scanResponse.json();
+        const uuid = scanData.uuid;
+
+        resultDiv.innerHTML = `<p>Scan submitted. Waiting for results...</p>`;
+
+        // Start polling the result endpoint
+        pollForResult(uuid, resultDiv);
+
+      } catch (error) {
+        console.error("Scan error:", error);
+        resultDiv.textContent = "An error occurred during scanning.";
+      }
+  }
+
+  async function pollForResult(uuid, resultDiv) {
+    const proxy = "https://cors-anywhere.herokuapp.com/";
+    const resultUrl = proxy + `https://urlscan.io/api/v1/result/${uuid}/`;
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(resultUrl);
+        if (!response.ok) return;
+
+        const result = await response.json();
+
+        if (result.verdicts && result.verdicts.overall) {
+          clearInterval(interval);
+
+          const verdict = result.verdicts.overall.score;
+          let label = "Unknown";
+
+          if (verdict === 0) label = "Clean ✅";
+          else if (verdict === 1) label = "Suspicious ⚠️";
+          else if (verdict === 2) label = "Malicious 🚨";
+
+          resultDiv.innerHTML = `
+            <p><strong>Verdict:</strong> ${label}</p>
+            <p><a href="${result.task.reportURL}" target="_blank">View Full Report</a></p>
+          `;
+        }
+
+      } catch (err) {
+        console.log("Waiting for scan to complete...");
+      }
+    }, 3000); // Poll every 3 seconds
+  }
+
+  const checkBreaches = () => {
+      const email = document.getElementById('userEmail').value.trim();
+      if (email) {
+        const url = `https://haveibeenpwned.com/account/${encodeURIComponent(email)}`;
+        window.open(url, '_blank');
+      } else {
+        alert('Please enter a valid email address.');
+      }
+    };
+  
+  function checkPhishing() {
+    const mailText = document.getElementById("mailText").value.toLowerCase();
+    const phishResult = document.getElementById("phishResult");
+
+    const suspiciousKeywords = [
+      "urgent", "click here", "verify", "account", "login", 
+      "password", "bank", "update", "security", "limited time", 
+      "suspend", "confirm", "reset", "important", "alert"
+    ];
+
+    let phishingDetected = suspiciousKeywords.some(keyword => mailText.includes(keyword));
+
+    if (phishingDetected) {
+      phishResult.textContent = "⚠️ Potential phishing detected!";
+      phishResult.style.color = "red";
+    } else {
+      phishResult.textContent = "✅ No phishing detected.";
+      phishResult.style.color = "green";
+    }
+  }
+
+</script>
+</body>
+</html>
+
+

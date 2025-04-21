@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #ffecd2, #fcb69f);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      background-color: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      width: 350px;
+      text-align: center;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: #ff6f61;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background-color: #e25449;
+    }
+
+    #feedback {
+      font-size: 0.9em;
+      color: #555;
+      margin-top: 10px;
+    }
+
+    .gen {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Login</h2>
+    <form id="loginForm">
+      <input type="text" id="name" placeholder="Name" required><br>
+      <input type="email" id="email" placeholder="Email" required><br>
+      <input type="password" id="password" placeholder="Password" required><br>
+      <div id="feedback"></div>
+      <div class="gen">
+        <button type="button" onclick="generatePassword()">Generate Strong Password</button>
+      </div>
+      <button type="submit">Submit</button>
+    </form>
+  </div>
+
+  <script>
+    const passwordInput = document.getElementById('password');
+    const feedback = document.getElementById('feedback');
+
+    passwordInput.addEventListener('input', () => {
+      const pwd = passwordInput.value;
+      let msg = 'Strength: ';
+      if (pwd.length < 6) msg += 'Too short';
+      else if (!/[A-Z]/.test(pwd)) msg += 'Add uppercase letter';
+      else if (!/[a-z]/.test(pwd)) msg += 'Add lowercase letter';
+      else if (!/[0-9]/.test(pwd)) msg += 'Add a number';
+      else if (!/[!@#$%^&*]/.test(pwd)) msg += 'Add a special character';
+      else msg += 'Strong!';
+      feedback.textContent = msg;
+    });
+
+    function generatePassword() {
+      const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+      let pwd = "";
+      for (let i = 0; i < 12; i++) {
+        pwd += charset[Math.floor(Math.random() * charset.length)];
+      }
+      passwordInput.value = pwd;
+      feedback.textContent = "Generated a strong password!";
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const pwd = document.getElementById('password').value;
+      sessionStorage.setItem("loginPassword", pwd);
+      window.location.href = "PasswordStoragepage.html";
+    });
+    
+  </script>
+</body>
+</html>
+
+
